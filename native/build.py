@@ -167,10 +167,90 @@ toolchain(name = "toolchain", toolchain = ":cc",
     write_changed(stage / 'sdk_toolchain/BUILD.bazel', config.encode())
 
 
+def build_opensv(settings, request):
+    """Build libopensv_native via CMake for Android or desktop targets."""
+    rid = settings['RuntimeIdentifier']
+    filename = settings['NativeFileName']
+
+    # Where the user placed the OpenSV+ checkout (CMakeLists.txt + third_party/JUCE/).
+    opensv_src = Path(os.environ.get(
+        'OPENSV_SOURCE_DIR',
+        str(ROOT / 'vendor' / 'opensv-plus')
+    )).resolve()
+    if not (opensv_src / 'CMakeLists.txt').is_file():
+        raise FileNotFoundError(
+            f'OpenSV+ source not found at {opensv_src}. '
+            'Extract it there, or set OPENSV_SOURCE_DIR.'
+        )
+
+    wrapper_cmake = HERE / 'opensv' / 'CMakeLists.txt'
+    build_dir = ROOT / 'artifacts' / 'opensv-build' / rid
+    build_dir.mkdir(parents=True, exist_ok=True)
+
+    cmake = shutil.which('cmake')
+    if not cmake:
+        raise RuntimeError('cmake not found on PATH')
+
+    configure_cmd = [
+        cmake,
+        '-S', str(wrapper_cmake.parent),
+        '-B', str(build_dir),
+        f'-DOPENSV_SOURCE_DIR={opensv_src}',
+        '-DOPENSV_BUILD_SHARED=ON',
+        '-DOPENSV_BUILD_CLI=OFF',
+        '-DCMAKE_BUILD_TYPE=Release',
+    ]
+
+    if rid.startswith('android-'):
+        ndk = Path(settings.get('AndroidNdkDirectory', '')).resolve()
+        if not ndk.is_dir():
+            raise RuntimeError(f'AndroidNdkDirectory not set or missing: {ndk}')
+        abi_map = {
+            'android-arm64': 'arm64-v8a',
+            'android-arm':   'armeabi-v7a',
+            'android-x64':   'x86_64',
+            'android-x86':   'x86',
+        }
+        abi = abi_map.get(rid, 'arm64-v8a')
+        api = settings.get('SupportedOSPlatformVersion', '24')
+        toolchain = ndk / 'build' / 'cmake' / 'android.toolchain.cmake'
+        configure_cmd += [
+            f'-DCMAKE_TOOLCHAIN_FILE={toolchain}',
+            f'-DANDROID_ABI={abi}',
+            f'-DANDROID_PLATFORM=android-{api}',
+            '-DANDROID_STL=c++_shared',
+        ]
+    elif rid.startswith('win-'):
+        arch_map = {'win-x64': 'x64', 'win-arm64': 'ARM64', 'win-x86': 'Win32'}
+        arch = arch_map.get(rid, 'x64')
+        configure_cmd += ['-A', arch]
+
+    env = dict(os.environ)
+    subprocess.run(configure_cmd, cwd=build_dir, env=env, check=True)
+    subprocess.run([cmake, '--build', str(build_dir), '--config', 'Release', '--parallel'], env=env, check=True)
+
+    # Locate the built library — CMake puts it in different places per platform.
+    candidates = list(build_dir.rglob(filename))
+    if not candidates:
+        # Also check the Release sub-folder (MSVC multi-config generators).
+        candidates = list((build_dir / 'Release').rglob(filename)) if (build_dir / 'Release').exists() else []
+    if not candidates:
+        raise FileNotFoundError(f'Built library {filename} not found under {build_dir}')
+    output_path = request.parent / filename
+    write_changed(output_path, candidates[0].read_bytes())
+    print(f'Native opensv {rid}: {output_path}', flush=True)
+
+
 def build(settings, request, run_tests, update_lock):
     """从统一参数构建一个库，直接安装 Bazel 的确定输出。"""
     library = settings['NativeLibrary']
     rid = settings['RuntimeIdentifier']
+
+    if library == 'opensv':
+        with build_lock(ROOT / 'artifacts/native-locks/opensv' / (rid + '.lock')):
+            build_opensv(settings, request)
+        return
+
     build_root = ROOT / 'artifacts' / {'worldline': 'worldline-build', 'game': 'game-bazel-build'}[library]
     workspace = build_root / rid / 'workspace'
     stage_sources(library, workspace)

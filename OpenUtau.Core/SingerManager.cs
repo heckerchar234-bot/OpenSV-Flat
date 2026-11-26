@@ -32,6 +32,7 @@ namespace OpenUtau.Core {
             var oldSingers = Singers.Values.ToList();
             var found = ClassicSingerLoader.FindAllSingers()
                 .Concat(Vogen.VogenSingerLoader.FindAllSingers())
+                .Concat(SynthV.SynthVSingerLoader.FindAllSingers())
                 .ToList();
             // Singers with the same id are equal (see USinger.Equals), so this keeps the first.
             var singers = found.Distinct().ToList();

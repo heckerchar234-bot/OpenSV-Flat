@@ -69,6 +69,16 @@
                 <LibraryFile Condition="'$(_NativePlatform)' == 'osx'">libopum_game.dylib</LibraryFile>
                 <Sources>@(_NativeCommonSource);@(_GameSource)</Sources>
             </_NativeBuild>
+            <!-- OpenSV+ Synth V 2 synthesis library (CMake, not Bazel). -->
+            <_NativeBuild Include="@(_NativeRuntime)" Condition="'$(_NativeDesktop)' == 'true' or '$(_NativePlatform)' == 'android'">
+                <Library>opensv</Library>
+                <LibraryFile>libopensv_native.so</LibraryFile>
+                <LibraryFile Condition="'$(_NativePlatform)' == 'windows'">opensv_native.dll</LibraryFile>
+                <LibraryFile Condition="'$(_NativePlatform)' == 'osx'">libopensv_native.dylib</LibraryFile>
+                <!-- Track the CMake wrapper; actual OpenSV+ source is an external prerequisite. -->
+                <Sources>$(_NativeRoot)opensv/CMakeLists.txt</Sources>
+            </_NativeBuild>
+
             <_NativeBuild Update="@(_NativeBuild)">
                 <OutputDirectory>$(_NativeRoot)../artifacts/native/%(_NativeBuild.Identity)</OutputDirectory>
                 <InputFile>$(_NativeRoot)../artifacts/native/%(_NativeBuild.Identity)/%(_NativeBuild.Library).inputs</InputFile>
@@ -83,7 +93,7 @@
     </Target>
     <!-- 原生成功记录位于共享 artifacts，SDK 的 bin/obj 清理不会处理它们。 -->
     <Target Name="CleanNativeLibraries" AfterTargets="CoreClean" DependsOnTargets="SelectNativeRuntimes">
-        <Delete Files="@(_NativeRuntime->'$(_NativeRoot)../artifacts/native/%(Identity)/worldline.stamp');@(_NativeRuntime->'$(_NativeRoot)../artifacts/native/%(Identity)/game.stamp')" />
+        <Delete Files="@(_NativeRuntime->'$(_NativeRoot)../artifacts/native/%(Identity)/worldline.stamp');@(_NativeRuntime->'$(_NativeRoot)../artifacts/native/%(Identity)/game.stamp');@(_NativeRuntime->'$(_NativeRoot)../artifacts/native/%(Identity)/opensv.stamp')" />
     </Target>
     <Target Name="BuildNativeLibraries" DependsOnTargets="PrepareNativeBuild"
             Inputs="%(_NativeBuild.Sources);%(_NativeBuild.InputFile)" Outputs="%(_NativeBuild.Stamp)"

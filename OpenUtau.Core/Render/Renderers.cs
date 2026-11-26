@@ -29,6 +29,7 @@ namespace OpenUtau.Core.Render {
         public const string DIFFSINGER = "DIFFSINGER";
         public const string VOICEVOX = "VOICEVOX";
         public const string NEUTRINO = "NEUTRINO";
+        public const string SYNTHV = "SYNTHV";
 
         static readonly string[] classicRenderers = new[] { WORLDLINE_R, WORLDLINE_R11, WORLDLINE_R2, CLASSIC };
         static readonly string[] enunuRenderers = new[] { ENUNU };
@@ -36,6 +37,7 @@ namespace OpenUtau.Core.Render {
         static readonly string[] diffSingerRenderers = new[] { DIFFSINGER };
         static readonly string[] voicevoxRenderers = new[] { VOICEVOX };
         static readonly string[] neutrinoRenderers = new[] { NEUTRINO };
+        static readonly string[] synthVRenderers = new[] { SYNTHV };
         static readonly string[] noRenderers = new string[0];
         static readonly HashSet<string> builtinRendererNames = new HashSet<string> {
             CLASSIC,
@@ -47,6 +49,7 @@ namespace OpenUtau.Core.Render {
             DIFFSINGER,
             VOICEVOX,
             NEUTRINO,
+            SYNTHV,
         };
 
         sealed class RendererFactory {
@@ -92,6 +95,8 @@ namespace OpenUtau.Core.Render {
                     return voicevoxRenderers;
                 case USingerType.Neutrino:
                     return neutrinoRenderers;
+                case USingerType.SynthV:
+                    return synthVRenderers;
                 default:
                     return noRenderers;
             }
@@ -142,6 +147,8 @@ namespace OpenUtau.Core.Render {
                 return new Voicevox.VoicevoxRenderer();
             } else if (renderer == NEUTRINO) {
                 return new Neutrino.NeutrinoRenderer();
+            } else if (renderer == SYNTHV) {
+                return new SynthV.SynthVRenderer();
             }
             return TryCreateExternalRenderer(renderer);
         }
