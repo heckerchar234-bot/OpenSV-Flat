@@ -104,6 +104,14 @@ jobs:
         run: |
           echo "OPENSV_SOURCE_DIR=$GITHUB_WORKSPACE/vendor/opensv-plus" >> "$GITHUB_ENV"
 
+      - name: Cache OpenSV+ CMake build
+        uses: actions/cache@v4
+        with:
+          path: artifacts/opensv-build/${{ inputs.rid }}
+          key: opensv-cmake-${{ inputs.rid }}-${{ hashFiles('vendor/opensv-plus/CMakeLists.txt', 'vendor/opensv-plus/src/**', 'vendor/opensv-plus/include/**', 'native/opensv/CMakeLists.txt') }}
+          restore-keys: |
+            opensv-cmake-${{ inputs.rid }}-
+
       - name: Build OpenSV+ native library (${{ inputs.rid }})
         shell: bash
         run: |
