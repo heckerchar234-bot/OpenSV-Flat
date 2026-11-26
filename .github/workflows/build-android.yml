@@ -91,12 +91,43 @@ jobs:
           set -euo pipefail
           NDK_VERSION="27.2.12479018"
           SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:?Android SDK is required}}"
-          # Install pinned NDK if not already present
           if [ ! -f "$SDK_ROOT/ndk/$NDK_VERSION/source.properties" ]; then
             sdkmanager --sdk_root="$SDK_ROOT" "ndk;$NDK_VERSION"
           fi
           test -f "$SDK_ROOT/ndk/$NDK_VERSION/source.properties"
           echo "OPUM_ANDROID_NDK=$SDK_ROOT/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
+
+      # ── Swap + ccache: MUST run before OpenSV+ build ────────────────────────
+      - name: Create swap space
+        shell: bash
+        run: |
+          set -euo pipefail
+          SWAP_FILE=/runner-swapfile
+          if [ ! -f "$SWAP_FILE" ]; then
+            sudo fallocate -l 6G "$SWAP_FILE"
+            sudo chmod 600 "$SWAP_FILE"
+            sudo mkswap "$SWAP_FILE"
+          fi
+          sudo swapon "$SWAP_FILE" 2>/dev/null || true
+          free -h
+
+      - name: Install ccache
+        shell: bash
+        run: |
+          sudo apt-get install -y --no-install-recommends ccache
+          ccache --max-size=2G
+          ccache --zero-stats
+          echo "CCACHE_DIR=$HOME/.ccache" >> "$GITHUB_ENV"
+
+      - name: Cache ccache objects
+        uses: actions/cache@v4
+        with:
+          path: ~/.ccache
+          key: ccache-opensv-${{ inputs.rid }}-${{ hashFiles('vendor/opensv-plus/src/**', 'vendor/opensv-plus/include/**') }}
+          restore-keys: |
+            ccache-opensv-${{ inputs.rid }}-
+            ccache-opensv-
+      # ────────────────────────────────────────────────────────────────────────
 
       # ── OpenSV+ native build ─────────────────────────────────────────────────
       - name: Set OpenSV+ source dir
@@ -116,7 +147,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # build.py expects a key=value settings file as its only argument
           SETTINGS_FILE="$(mktemp)"
           cat > "$SETTINGS_FILE" <<EOF
           NativeLibrary=opensv
@@ -126,20 +156,11 @@ jobs:
           NativeFileName=libopensv_native.so
           EOF
           python3 native/build.py "$SETTINGS_FILE"
-      # ────────────────────────────────────────────────────────────────────────
 
-      - name: Create Swap Space
+      - name: Show ccache stats
         shell: bash
-        run: |
-          SWAP_FILE=/runner-swapfile
-          if [ ! -f "$SWAP_FILE" ]; then
-            sudo fallocate -l 6G "$SWAP_FILE"
-            sudo chmod 600 "$SWAP_FILE"
-            sudo mkswap "$SWAP_FILE"
-          fi
-          sudo swapon "$SWAP_FILE" 2>/dev/null || true
-          free -h
-          swapon --show
+        run: ccache --show-stats
+      # ────────────────────────────────────────────────────────────────────────
 
       - name: Collect Build Metadata
         shell: bash
@@ -259,7 +280,6 @@ jobs:
             exit 1
           fi
 
-          # verify worldline + opensv_native are both present
           for LIBRARY in libworldline.so libonnxruntime.so libonnxruntime4j_jni.so libopum_game.so libopensv_native.so; do
             ENTRY="lib/$EXPECTED_ABI/$LIBRARY"
             COUNT="$(unzip -Z1 "$SIGNED_APK" | grep -Fxc "$ENTRY" || true)"
