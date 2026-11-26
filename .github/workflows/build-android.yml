@@ -99,21 +99,9 @@ jobs:
           echo "OPUM_ANDROID_NDK=$SDK_ROOT/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
 
       # ── OpenSV+ native build ─────────────────────────────────────────────────
-      - name: Extract OpenSV+ source
+      - name: Set OpenSV+ source dir
         shell: bash
         run: |
-          set -euo pipefail
-          mkdir -p vendor/opensv-plus
-          # OpenSV.zip committed at vendor/OpenSV.zip, or override via env
-          OPENSV_ZIP="${OPENSV_ZIP_PATH:-vendor/OpenSV.zip}"
-          if [ ! -f "$OPENSV_ZIP" ]; then
-            echo "::error::OpenSV+ zip not found at $OPENSV_ZIP. Commit it to vendor/OpenSV.zip or set OPENSV_ZIP_PATH."
-            exit 1
-          fi
-          unzip -q "$OPENSV_ZIP" -d /tmp/opensv-extract
-          # strip the top-level "OpenSV+" folder
-          INNER="$(find /tmp/opensv-extract -maxdepth 1 -mindepth 1 -type d | head -1)"
-          mv "$INNER"/* vendor/opensv-plus/
           echo "OPENSV_SOURCE_DIR=$GITHUB_WORKSPACE/vendor/opensv-plus" >> "$GITHUB_ENV"
 
       - name: Build OpenSV+ native library (${{ inputs.rid }})
