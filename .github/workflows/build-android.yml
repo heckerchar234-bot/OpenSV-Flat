@@ -1,4 +1,4 @@
-,name: Reusable Android Build
+name: Reusable Android Build
 
 on:
   workflow_call:
@@ -86,18 +86,17 @@ jobs:
         uses: ./.github/actions/setup-worldline
 
       - name: Install Android native toolchain
-  shell: bash
-  run: |
-    set -euo pipefail
-    SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:?Android SDK is required}}"
-    # Use the NDK that ships with ubuntu-latest (26.x or 27.x)
-    NDK_DIR="$(ls -d "$SDK_ROOT/ndk/"* 2>/dev/null | sort -V | tail -1)"
-    if [ -z "$NDK_DIR" ]; then
-      echo "::error::No NDK found in $SDK_ROOT/ndk/"
-      exit 1
-    fi
-    echo "Using NDK: $NDK_DIR"
-    echo "OPUM_ANDROID_NDK=$NDK_DIR" >> "$GITHUB_ENV"
+        shell: bash
+        run: |
+          set -euo pipefail
+          NDK_VERSION="27.2.12479018"
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:?Android SDK is required}}"
+          # Install pinned NDK if not already present
+          if [ ! -f "$SDK_ROOT/ndk/$NDK_VERSION/source.properties" ]; then
+            sdkmanager --sdk_root="$SDK_ROOT" "ndk;$NDK_VERSION"
+          fi
+          test -f "$SDK_ROOT/ndk/$NDK_VERSION/source.properties"
+          echo "OPUM_ANDROID_NDK=$SDK_ROOT/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
 
       # ── OpenSV+ native build ─────────────────────────────────────────────────
       - name: Extract OpenSV+ source
