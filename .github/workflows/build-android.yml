@@ -108,10 +108,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 native/build.py \
-            --rid "${{ inputs.rid }}" \
-            --library opensv \
-            --ndk "$OPUM_ANDROID_NDK"
+          # build.py expects a key=value settings file as its only argument
+          SETTINGS_FILE="$(mktemp)"
+          cat > "$SETTINGS_FILE" <<EOF
+          NativeLibrary=opensv
+          RuntimeIdentifier=${{ inputs.rid }}
+          AndroidNdkDirectory=$OPUM_ANDROID_NDK
+          SupportedOSPlatformVersion=24
+          NativeFileName=libopensv_native.so
+          EOF
+          python3 native/build.py "$SETTINGS_FILE"
       # ────────────────────────────────────────────────────────────────────────
 
       - name: Create Swap Space
