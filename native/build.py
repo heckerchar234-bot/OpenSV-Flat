@@ -1,6 +1,7 @@
 """使用 MSBuild 继承的目标和配置构建原生库。"""
 import argparse
 from contextlib import contextmanager
+import multiprocessing
 import json
 import os
 from pathlib import Path
@@ -225,9 +226,24 @@ def build_opensv(settings, request):
         arch = arch_map.get(rid, 'x64')
         configure_cmd += ['-A', arch]
 
+    # Limit parallel jobs: JUCE eats ~400MB RAM/job; cap on CI (2-core, 7GB runners)
+    cpu_count = multiprocessing.cpu_count()
+    parallel_jobs = min(cpu_count, 2) if os.environ.get('CI') else cpu_count
+
+    # Use ccache if available — dramatically speeds up repeat builds
+    ccache = shutil.which('ccache')
+    if ccache:
+        configure_cmd += [
+            f'-DCMAKE_C_COMPILER_LAUNCHER={ccache}',
+            f'-DCMAKE_CXX_COMPILER_LAUNCHER={ccache}',
+        ]
+
     env = dict(os.environ)
     subprocess.run(configure_cmd, cwd=build_dir, env=env, check=True)
-    subprocess.run([cmake, '--build', str(build_dir), '--config', 'Release', '--parallel'], env=env, check=True)
+    subprocess.run(
+        [cmake, '--build', str(build_dir), '--config', 'Release', '--parallel', str(parallel_jobs)],
+        env=env, check=True
+    )
 
     # Locate the built library — CMake puts it in different places per platform.
     candidates = list(build_dir.rglob(filename))
