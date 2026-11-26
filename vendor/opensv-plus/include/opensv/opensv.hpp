@@ -1,0 +1,30 @@
+#pragma once
+
+// C++ synthesis API. Link against opensv_synthesis when using add_subdirectory.
+#include <synthesis/AcousticFeatures.h>
+#include <synthesis/AcousticModel.h>
+#include <synthesis/DnniDump.h>
+#include <synthesis/DnniInference.h>
+#include <synthesis/DnniReader.h>
+#include <synthesis/FeatureNormalizer.h>
+#include <synthesis/ModelFiles.h>
+#include <synthesis/NeuralVocoder.h>
+#include <synthesis/PhonemeDictionary.h>
+#include <synthesis/PhonemeTiming.h>
+#include <synthesis/PhoneSet.h>
+#include <synthesis/PitchContext.h>
+#include <synthesis/PitchCurve.h>
+#include <synthesis/PitchDecoder.h>
+#include <synthesis/PitchFeatures.h>
+#include <synthesis/PitchModel.h>
+#include <synthesis/PitchPostprocess.h>
+#include <synthesis/PeriodicExcitation.h>
+#include <synthesis/SynthesisControls.h>
+#include <synthesis/SynthesisStatistics.h>
+#include <synthesis/VoiceConfiguration.h>
+#include <synthesis/VoiceDatabase.h>
+#include <synthesis/VoiceEmbeddings.h>
+#include <synthesis/VoiceSynthesizer.h>
+#include <synthesis/VocoderFilterBank.h>
+#include <synthesis/VocoderResidual.h>
+#include <synthesis/VocoderSpectralHeads.h>

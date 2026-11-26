@@ -1,0 +1,18 @@
+{
+  "notes": [
+    {
+      "language": "japanese",
+      "duration": 0.45,
+      "tone": 60,
+      "lexicalTone": 0,
+      "phones": ["a"]
+    },
+    {
+      "language": "japanese",
+      "duration": 0.55,
+      "tone": 64,
+      "lexicalTone": 0,
+      "phones": ["k", "a"]
+    }
+  ]
+}

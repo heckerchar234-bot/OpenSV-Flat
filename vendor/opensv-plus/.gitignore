@@ -1,0 +1,6 @@
+/build/
+/cmake-build-*/
+/out/
+/stage/
+*.wav
+*.cache
