@@ -37,9 +37,10 @@ jobs:
           sudo swapon /runner-swapfile
           free -h
 
-      - name: Install ccache
+      - name: Install build tools
         run: |
-          sudo apt-get install -y --no-install-recommends ccache
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends cmake ninja-build ccache
           ccache --max-size=3G
           echo "CCACHE_DIR=$HOME/.ccache" >> "$GITHUB_ENV"
 
