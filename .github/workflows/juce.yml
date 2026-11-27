@@ -1,0 +1,110 @@
+name: Build JUCE Android Cache
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'vendor/opensv-plus/third_party/JUCE/**'
+      - 'vendor/opensv-plus/CMakeLists.txt'
+      - '.github/workflows/build-juce-android.yml'
+
+jobs:
+  build-juce:
+    name: JUCE Android ${{ matrix.rid }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - rid: android-arm64
+            abi: arm64-v8a
+          - rid: android-arm
+            abi: armeabi-v7a
+          - rid: android-x64
+            abi: x86_64
+          - rid: android-x86
+            abi: x86
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Create swap space
+        shell: bash
+        run: |
+          sudo fallocate -l 6G /runner-swapfile
+          sudo chmod 600 /runner-swapfile
+          sudo mkswap /runner-swapfile
+          sudo swapon /runner-swapfile
+          free -h
+
+      - name: Install ccache
+        run: |
+          sudo apt-get install -y --no-install-recommends ccache
+          ccache --max-size=3G
+          echo "CCACHE_DIR=$HOME/.ccache" >> "$GITHUB_ENV"
+
+      - name: Cache ccache objects
+        uses: actions/cache@v4
+        with:
+          path: ~/.ccache
+          key: ccache-juce-${{ matrix.rid }}-${{ hashFiles('vendor/opensv-plus/third_party/JUCE/**') }}
+          restore-keys: |
+            ccache-juce-${{ matrix.rid }}-
+
+      - name: Install Android NDK
+        shell: bash
+        run: |
+          NDK_VERSION="27.2.12479018"
+          SDK_ROOT="${ANDROID_HOME}"
+          if [ ! -f "$SDK_ROOT/ndk/$NDK_VERSION/source.properties" ]; then
+            sdkmanager --sdk_root="$SDK_ROOT" "ndk;$NDK_VERSION"
+          fi
+          echo "ANDROID_NDK=$SDK_ROOT/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
+
+      - name: Configure JUCE-only CMake
+        shell: bash
+        run: |
+          cmake \
+            -S vendor/opensv-plus \
+            -B build/juce-${{ matrix.rid }} \
+            -DOPENSV_BUILD_SHARED=OFF \
+            -DOPENSV_BUILD_CLI=OFF \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK/build/cmake/android.toolchain.cmake" \
+            -DANDROID_ABI=${{ matrix.abi }} \
+            -DANDROID_PLATFORM=android-24 \
+            -DANDROID_STL=c++_shared \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+
+      - name: Build JUCE static libs
+        shell: bash
+        run: |
+          cmake --build build/juce-${{ matrix.rid }} \
+            --config Release \
+            --parallel 2 \
+            --target juce_core juce_audio_basics juce_audio_formats juce_dsp
+
+      - name: Collect JUCE artifacts
+        shell: bash
+        run: |
+          mkdir -p juce-prebuilt/${{ matrix.rid }}
+          # copy static libs
+          find build/juce-${{ matrix.rid }} -name "*.a" | while read f; do
+            cp "$f" juce-prebuilt/${{ matrix.rid }}/
+          done
+          # copy headers
+          cp -r vendor/opensv-plus/third_party/JUCE/modules juce-prebuilt/include
+          echo "Files:"
+          find juce-prebuilt/${{ matrix.rid }} -type f
+
+      - name: Show ccache stats
+        run: ccache --show-stats
+
+      - name: Upload JUCE prebuilt
+        uses: actions/upload-artifact@v7
+        with:
+          name: juce-prebuilt-${{ matrix.rid }}
+          path: juce-prebuilt/
+          retention-days: 90
+          if-no-files-found: error
