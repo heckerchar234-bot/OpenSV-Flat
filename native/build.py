@@ -192,6 +192,15 @@ def build_opensv(settings, request):
     if not cmake:
         raise RuntimeError('cmake not found on PATH')
 
+    # Check for prebuilt JUCE (skips the 90-min JUCE compile on CI)
+    juce_prebuilt_env = os.environ.get('JUCE_PREBUILT_DIR', '')
+    juce_prebuilt = Path(juce_prebuilt_env).resolve() / rid if juce_prebuilt_env else None
+    if juce_prebuilt and not juce_prebuilt.is_dir():
+        raise FileNotFoundError(
+            f'JUCE_PREBUILT_DIR set but {juce_prebuilt} not found. '
+            'Run the build-juce-android workflow first.'
+        )
+
     configure_cmd = [
         cmake,
         '-S', str(wrapper_cmake.parent),
@@ -201,6 +210,8 @@ def build_opensv(settings, request):
         '-DOPENSV_BUILD_CLI=OFF',
         '-DCMAKE_BUILD_TYPE=Release',
     ]
+    if juce_prebuilt:
+        configure_cmd.append(f'-DJUCE_PREBUILT_DIR={juce_prebuilt}')
 
     if rid.startswith('android-'):
         ndk = Path(settings.get('AndroidNdkDirectory', '')).resolve()
