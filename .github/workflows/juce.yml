@@ -37,6 +37,12 @@ jobs:
           sudo swapon /runner-swapfile
           free -h
 
+      - name: Setup Android SDK command-line tools
+        uses: android-actions/setup-android@v3
+        with:
+          packages: ''
+          log-accepted-android-sdk-licenses: false
+
       - name: Install build tools
         run: |
           sudo apt-get update -qq
