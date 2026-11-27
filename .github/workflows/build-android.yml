@@ -135,6 +135,23 @@ jobs:
         run: |
           echo "OPENSV_SOURCE_DIR=$GITHUB_WORKSPACE/vendor/opensv-plus" >> "$GITHUB_ENV"
 
+      - name: Download prebuilt JUCE (${{ inputs.rid }})
+        uses: actions/download-artifact@v4
+        with:
+          name: juce-prebuilt-${{ inputs.rid }}
+          path: juce-prebuilt/
+        continue-on-error: true  # falls back to full compile if not available
+
+      - name: Set JUCE_PREBUILT_DIR if available
+        shell: bash
+        run: |
+          if [ -d "juce-prebuilt/${{ inputs.rid }}" ]; then
+            echo "JUCE_PREBUILT_DIR=$GITHUB_WORKSPACE/juce-prebuilt" >> "$GITHUB_ENV"
+            echo "✅ Prebuilt JUCE found — skipping JUCE compilation"
+          else
+            echo "⚠️ No prebuilt JUCE — full compile (run build-juce-android workflow to cache)"
+          fi
+
       - name: Cache OpenSV+ CMake build
         uses: actions/cache@v4
         with:
